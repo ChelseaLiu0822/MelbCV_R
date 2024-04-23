@@ -1,0 +1,304 @@
+---
+title: "EDA2021 综合大作业"
+author: "191001228 刘秋岐"
+date: "2022/1/15"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+1.（30分）MelbCV.csv是墨尔本人行道监控数据的一个子集，用探索一个新的数据集的一般策略（第三讲ppt）对其进行探索性分析，并利用统计描述或图形回答如下问题：
+1.1该数据集有多少记录？多少变量？变量名称是什么？它们有意义吗？每个变量是什么类型？每个变量有多少个唯一值？什么值出现的频率最高，多久出现一次？有缺失值吗？如果有，这种情况发生的频率有多高？
+```{r}
+library(readr)
+MelbCV<-read_csv("MelbCV.csv",show_col_types = TRUE)#读入数据，15个变量，720条记录
+spec(MelbCV)#查看变量类型
+```
+
+```{r}
+library(tidyverse)
+MelbCV<-as.tibble(MelbCV)
+MelbCV.unique<-apply(MelbCV,2,FUN = function(x){length(unique(x))})
+MelbCV.unique#每个变量有多少唯一值
+getmode <- function(v) {
+   uniqv <- data.frame(table(v))
+   i<-which.max(uniqv$Freq)
+   as.numeric(as.vector(uniqv$v[i]))
+}
+MelbCV.mode<-apply(MelbCV[,8:15],2,FUN = function(x){getmode(x)})
+MelbCV.mode#出现频次最高的值
+#MelbCV.mode是每列出现频次最高的值即众数，其中Date,year,Month,Mdate,Hour中的各个唯一值出现频次相同如下,Day列中出现频次最高的有1和7;Hour中的出现频次最高的值每24个记录其中就会出现一次;Date,year,Month,每一条记录其都会出现其众数;
+MelbCV$Date%>%table
+MelbCV$Year%>%table
+MelbCV$Month%>%table
+MelbCV$Mdate%>%table
+MelbCV$Day%>%table
+MelbCV$Hour%>%table
+MelbCV$Weekday_End%>%table
+#众数出现的位置
+which(MelbCV$`Town_Hall-West`==MelbCV.mode[1])
+which(MelbCV$`Collins Place-South`==MelbCV.mode[2])
+which(MelbCV$`Bourke Street Mall-North`==MelbCV.mode[5])
+which(MelbCV$`Australia on Collins`==MelbCV.mode[3])
+which(MelbCV$`Bourke Street Mall-South`==MelbCV.mode[4])
+which(MelbCV$`Melbourne Central`==MelbCV.mode[6])
+which(MelbCV$`Flagstaff Station`==MelbCV.mode[7])
+which(MelbCV$`State Library`==MelbCV.mode[8])
+MelbCV%>%summary#发现存在缺失值在`State Library`列，共有357个缺失值
+sum(is.na(MelbCV$`State Library`))#缺失值个数
+naprop<-sum(is.na(MelbCV$`State Library`))/nrow(MelbCV)
+naprop#出现缺失值的频率
+```
+答：由上可知，该数据集有720条记录，15个变量。变量的名称、意义、类型、唯一值个数、出现的频率最高的值（众数）如下表：
+
+|colname|含义|类型|唯一值个数|众数|
+|-|-|-|-|-|
+|Date |日期|character|30|所有值出现频次相同|
+|Year |年份|double|1|所有值出现频次相同,2012|
+|Month |月份|double|1|所有值出现频次相同,9|
+|Mdate |日|double|30|所有值出现频次相同|
+|Weekday_End |表示周末或工作日，10代表工作日，20代表周末|double|2|所有值出现频次相同,10,20|
+|Day |表示一周里的第几天，周日是第一天|double|7|1,7|
+|Hour |表示一天中的第几个小时|double|24|所有值出现频次相同|
+|Town_Hall-West|在Town_Hall-West的人行道通过人数|double|613|35|
+|Collins Place-South|在Collins Place-South的人行道通过人数|double|485|10|
+|Australia on Collins|在Australia on Collins的人行道通过人数|double|498|16|
+|Bourke Street Mall-South|在Bourke Street Mall-South的人行道通过人数|double|552|12|
+|Bourke Street Mall-North|在Bourke Street Mall-North的人行道通过人数|double|548|4|
+|Melbourne Central|在Melbourne Central的人行道通过人数|double|598|32|
+|Flagstaff Station|在Flagstaff Station的人行道通过人数|double|392|10|
+|State Library|在Flagstaff Station的人行道通过人数|double|308|24|
+
+其中Date,year,Month,Mdate,Hour中的各个唯一值出现频次相同如下,Day列中出现频次最高的有1和7;Hour中的出现频次最高的值每24个记录其中就会出现一次;Date,year,Month,每一条记录其都会出现其众数，后8列众数的出现没发现有什么规律；有缺失值，缺失值都出现在`State Library`列，有357个，这种情况发生的频率约是0.4958
+
+1.2根据1.1的初步探索，你知道了数据集的基本情况，接下来要做感兴趣的探索，通过对变量的观察及描述统计，判断该数据集是否有变量可以忽略，如果有是什么？其中一个变量Weekday_End，其有多少唯一取值的，根据数据集相关变量及常识说明取值的含义；
+答：已经有了年月日的数据，Date就可以忽略了；且这一整个数据集都是12年9月的数据年份、月份都是相同的，Month和Year可以忽略；由1.1可知Weekday_End有两个唯一值10和20，其中10代表工作日，20代表周末
+
+1.3分别利用描述统计量（5数）和图（选择适当的图）描述各条人行横道监控数据的特征；
+```{r}
+MelbCV[,8:15]%>%summary
+```
+```{r}
+b.output<-boxplot(MelbCV[,8:15],col = "lightblue",border = "tomato",las=2)
+```
+1.4用监控点数据绘制散点矩阵图（scatter matrix plot）,观察各条人行道监控数据间是否存在相关性，哪些变量间存在相关性？
+```{r}
+library(gclus)
+library(cluster)
+cpairs(MelbCV[,8:15],panel.colors=dmat.color(cor(MelbCV[,8:15],use = "na.or.complete")),order.single(cor(MelbCV[,8:15],use = "na.or.complete")),pch=".",gap=.8)
+```
+答：如图所示，紫色为相关性最高，绿色其次，黄色最末；"Melbourne Central"和"State Library"、"Town_Hall-West"存在相关性；"State Library"和"Town_Hall-West"、"Bourke Street Mall-North"存在相关性；"Town_Hall-West"和"Bourke Street Mall-North"、"Bourke Street Mall-South"存在相关性；"Bourke Street Mall-North"和"Bourke Street Mall-South"、"Australia on Collins"存在相关性；"Bourke Street Mall-South"和 "Australia on Collins"存在相关性。
+
+1.5依据统计数据回答各个监控点一天的哪些时段是行人通过的高峰？所有监控点是否有一致的人流高峰时段？若有，是哪个（些）时段？哪个路口人流量最大？哪个路口人流量最小？依据什么得出的结论？人流量的最大值出现在哪个监控点的哪天的哪个时段？
+```{r}
+alter<-MelbCV
+alter[is.na(alter)]<-mean(MelbCV$`State Library`,na.rm=TRUE)#缺失值用平均值代替
+#用于做图
+t_peak<-group_by(alter,Hour)%>%summarise( mean1=mean(`Town_Hall-West`),
+                                          mean2=mean(`Collins Place-South`),
+                                          mean3=mean(`Australia on Collins`),
+                                          mean4=mean(`Bourke Street Mall-South`),
+                                          mean5=mean(`Bourke Street Mall-North`),
+                                          mean6=mean(`Melbourne Central`),
+                                          mean7=mean(`Flagstaff Station`),
+                                          mean8=mean(`State Library`))
+
+library(reshape2)
+long_peak <- melt(t_peak, id="Hour")
+ggplot(data=long_peak,aes(x=Hour, y=value, group=variable, color=variable))+
+  geom_line()+
+  ylab("人数")+
+  scale_x_continuous(breaks=seq(0:23))
+
+#用于计算人流量
+t_sum<-apply(alter[,8:15],2,sum)
+t_sum
+
+#人流量最大值
+values<-alter[,8:15]
+alter[which(values==max(values),arr.ind = TRUE)[1],]
+```
+答：如上图一，各个监控点一天的13：00、8：00、13：00、13：00、13：00、13：00、8：00、17：00是行人通过的高峰；所有监控点有一致的人流高峰时段是8：00、13：00、17：00；Town_Hall-West路口人流量最大，Collins Place-South路口人流量最小；人流量的最大值出现在2012年9月20日8：00的Flagstaff Station监测点。
+
+1.6是否存在缺失值？出现在哪个（些）变量中，可否忽略？如不能，说明原因，并尝试对其进行插补，采用怎样的插补策略比较合适？
+答：存在缺失值，用平均值插补法进行插补,如上题1.5。
+
+1.7对有明显相关性的变量尝试建立相应的统计模型，并通过作图检验模型。
+答："Town_Hall-West"和"Bourke Street Mall-North"明显具有线性相关性
+```{r}
+write_csv(alter[,c(4:15)],"refine.csv")
+cor.test(alter$`Town_Hall-West`,alter$`Bourke Street Mall-North`)
+```
+从运行结果可以得到相关系数r=0.967206，P值< 2.2e-16，表明"Town_Hall-West"人数和"Bourke Street Mall-North"人数两者高度相关，存在显著的正相关关系。
+```{r}
+lm<-lm(alter$`Bourke Street Mall-North`~alter$`Town_Hall-West`)
+plot(alter$`Bourke Street Mall-North`~alter$`Town_Hall-West`,xlab="Town_Hall-West",ylab="Bourke Street Mall-North",col="lightblue",pch=20)
+abline(lm)
+summary(lm)
+```
+从运行结果可以看出：它们的p 值均很小。故是非常显著的。相关系数0.9355拟合优度较高，表明在BourkeStreetMall-North与Town_Hall-West的回归关系的数据中，由93.55%的数据可以由Bourke Street Mall-North与Town_Hall-West的线性关系来解释，可见两者之间有较强的相关关系。
+线性回归方程与回归系数的检验都是显著的，因此得到回归方程为$y=-225.2+0.9207x$
+
+2.（40分）Bjmo.csv中存放了中国地面国际交换站气候资料日值数据集北京站点从2010年1月1日到2014年3月31日的日值数据，数据说明文档及数据格式说明文档见“中国地面国际交换站气候资料日值数据集_数据格式说明文档.txt”，根据探索一个新的数据集的一般策略对其进行探索，并回答下列问题：
+2.1选取除区站号和带有“气（汽）压”以外的变量存放到对象bjmoeda中，通过str（）函数、描述统计和适当的图查看bjmoeda数据基本特征，bjmoeda有多少变量？每个变量有多少个唯一值？什么值出现的频率最高，多久出现一次？有缺失值吗？如果有，这种情况发生的频率有多高？
+```{r}
+bjmo<-read_csv("bjmo.csv",show_col_types = FALSE)
+bjmoeda<-bjmo[,c(2:8,10,11,13,14,16,18:22)]
+str(bjmoeda)
+bjmoeda.unique<-apply(bjmoeda,2,FUN = function(x){length(unique(x))})
+bjmoeda.unique#每个变量有多少唯一值
+bjmoeda.mode<-apply(bjmoeda,2,FUN = function(x){getmode(x)})
+bjmoeda.mode#众数,没有发现明显的出现规律
+summary(bjmoeda)#没有缺失值
+```
+
+2.2阅读“气象数据集说明文档”，检查并处理缺失值，将缺失值替换成NA；检查除缺失值外的其他需要处理的数据编码，给出将其转换为正常值的策略；
+```{r}
+bjmoeda[bjmoeda==32766]<-NA
+bjmoeda[bjmoeda==32700]<-0
+```
+
+2.3用折线图和箱线图描述各个观测变量值的变化情况，计算各个变量的月平均值，最大值，最小值以及中值，找出5年间北京地区气候特征，最高温、最低温、平均温的极值分别出现在哪年哪月哪日，值是多少？
+```{r}
+group_bjmoeda<-group_by(bjmoeda,年,月)
+summary(group_bjmoeda)
+boxplot(bjmoeda[,4:17],col = "lightblue",border = "tomato",las=2)
+a<-paste(as.character(bjmoeda$年),as.character(bjmoeda$月),sep = "/")
+Date<-paste(a,as.character(bjmoeda$日),sep = "/")
+new_bjmoeda<-mutate(bjmoeda,Date=Date)
+long_bjmoeda <- melt(new_bjmoeda[,4:18], id="Date")
+ggplot(data=long_bjmoeda,aes(x=Date, y=value, group=variable, color=variable))+
+  geom_line()+
+  scale_x_discrete(breaks = Date[seq(1,length(Date), by=29)])+
+  theme(axis.text.x=element_text(vjust=10,size=3))+
+  facet_wrap(variable~.)
+bjmoeda[which(bjmoeda$平均气温==max(bjmoeda$平均气温,na.rm=TRUE)),]
+bjmoeda[which(bjmoeda$日最低气温==max(bjmoeda$日最低气温,na.rm=TRUE)),]
+bjmoeda[which(bjmoeda$日最高气温==max(bjmoeda$日最高气温,na.rm=TRUE)),]
+bjmoeda[which(bjmoeda$平均气温==min(bjmoeda$平均气温,na.rm=TRUE)),]
+bjmoeda[which(bjmoeda$日最低气温==min(bjmoeda$日最低气温,na.rm=TRUE)),]
+bjmoeda[which(bjmoeda$日最高气温==min(bjmoeda$日最高气温,na.rm=TRUE)),]
+```
+答：各个变量的月平均值，最大值，最小值以及中值如上方第一个输出；5年间北京地区气候特征，日最高温、最低温、平均温的极大值分别出现在2010年7月5日、2010年7月31日、2010年7月6日，值分别为406、292、345；5年间北京地区气候特征，日最高温、最低温、平均温的极小值分别出现在2010年1月4日、2010年1月6日、2010年1月5日，值分别为-85、-167、-125；
+
+2.4这5年间北京的大风（10m/s以上）天气有多少天？最大风速是多少？探索风向和风速的关系，是否存在相关性？若存在，相关性如何？大风极端天气出现在什么季节？
+```{r}
+length(bjmoeda[which(bjmoeda$极大风速>100),])#单位是0.1m/s
+max(bjmoeda$极大风速)
+cor(bjmoeda$极大风速,bjmoeda$极大风速的风向)
+plot(bjmoeda$极大风速~bjmoeda$极大风速的风向,xlab="风向",ylab="风速",col="lightblue",pch=20)
+windday<-bjmoeda[which(bjmoeda$极大风速>100),]%>%group_by(月)%>%summarise(n=n())
+plot(windday$月,windday$n,type="o",col="tomato")
+lines(windday$月,rep(mean(windday$n),length(windday$月)),col="lightblue")
+```
+答：5年间北京的大风（10m/s以上）天气有17天，最大风速是22.8m/s;探索风向和风速存在相关性,相关性系数为0.2745365>0，为正相关；如图，大风极端天气出现在1、3~5、11~12月的次数较多，3~5月为春季12~2月为冬季。
+2.5探索降水量和蒸发量以及湿度之间的关系；用适当的图描述。
+```{r}
+cpairs(bjmoeda[,c(4,10,14,17)],panel.colors=dmat.color(cor(bjmoeda[,c(4,10,14,17)],use = "na.or.complete")),order.single(cor(bjmoeda[,c(4,10,14,17)],use = "na.or.complete")),pch=".",gap=.8)
+cpairs(bjmoeda[,c(4,5,10,17)],panel.colors=dmat.color(cor(bjmoeda[,c(4,5,10,17)],use = "na.or.complete")),order.single(cor(bjmoeda[,c(4,5,10,17)],use = "na.or.complete")),pch=".",gap=.8)
+```
+答：如图所示，蒸发量与湿度之间存在负相关关系，蒸发量与降水量之间存在负相关关系，降水量与湿度间存在正相关关系
+
+3.（30分）垃圾邮件数据分析，数据存放在spam.csv中，数据描述见附录。探索并尝试分析该数据。
+3.1用探索一个新的数据集的一般策略对其进行探索，用描述统计方法对数据结构进行概述；
+```{r}
+spam<-read_csv("spam.csv",show_col_types = FALSE)
+spec(spam)#变量名称和类型
+spam.unique<-apply(spam,2,FUN = function(x){length(unique(x))})
+spam.unique#每个变量有多少唯一值
+summary(spam)
+nona_s<-na.omit(spam)
+spam.mode<-apply(nona_s[,c(1,2,4,5,9,11,12,19)],2,FUN = function(x){getmode(x)})
+spam.mode#出现频次最高的值
+spam$`day of week`%>%table
+spam$box%>%table
+spam$domain%>%table
+spam$local%>%table
+spam$name%>%table
+spam$credit%>%table
+spam$sucker%>%table
+spam$porn%>%table
+spam$chain%>%table
+spam$username%>%table
+spam$`large text`%>%table
+spam$category%>%table
+spam$spam%>%table
+summary(spam)
+length(unique(which(is.na(spam),arr.ind = TRUE)[,1]))
+length(unique(which(is.na(spam),arr.ind = TRUE)[,1]))/nrow(spam)
+```
+答：描述性统计信息见上方，数据字典如下表：
+3.2 建立一个新变量 domain.reduced 用以减少域名的domain类别为： “edu” , “com” , “gov” , “org” , “net” , 和 “other.”
+```{r}
+repacedomain<-data.frame(spam$domain)
+domain.reduced<-apply(repacedomain,1,function(x){ifelse((x=="edu"||x=="com"||x=="gov"||x=="org"||x=="net"),x,"other.")})
+new_spam<-mutate(spam,domain.reduced=domain.reduced)
+```
+3.3 将 spam 作为分类变量, 用解释变量：day of week, time of day, size.kb, box, domain.reduced, local, digits, name, capct, special, credit, sucker, porn, chain, username, 和 large text, 构建一个随机森林分类器，令 mtry = 2.
+```{r}
+rf_param<-new_spam[,c(3:6,8:17,21,22)]
+colnames(rf_param)[1]<-"DayOfWeek"
+colnames(rf_param)[2]<-"TimeOfDay"
+library(randomForest)
+set.seed(1234)
+fit.forest<-randomForest(factor(spam)~.,rf_param,importance=TRUE,mtry=2)
+```
+
+3.4 给出各个变量重要性排序结果；
+```{r}
+sort(fit.forest$importance[,3])
+```
+答：下面是重要性由低到高排序的结果：chain、porn、special、username、DayOfWeek、 cappct、 credit、TimeOfDay、name、size.kb、 digits、 sucker、  local domain.reduced、 box 
+
+3.5 有多少非垃圾邮件被错判成垃圾邮件 spam?
+```{r}
+fit.forest#答：90个
+```
+3.6作出预测类别对真实类别的散点图, 作出按随机森林返回的变量重要性排序作出解释变量的平行坐标图（a parallel coordinate plot）在ggobi中刷出非垃圾邮件被错分成垃圾邮件的案例，标出这些邮件的信息（如，全都来自local box，字节少等等），然后观察垃圾邮件被正确分类的数据，它们有什么特殊之处？
+```{r}
+library(ggplot2)
+library(DescribeDisplay)
+library(showtext)
+library(sysfonts)
+library(showtextdb)
+pred_forest<-predict(fit.forest,rf_param)
+rf_result<-cbind(rf_param,pred_forest)
+write_csv(rf_result,"rf_result.csv")
+d4<-dd_load("../p_t.r")
+p4<-ggplot(d4)
+print(p4)
+
+```
+![pa_new](x1.png)
+
+答：非垃圾邮件被错分成垃圾邮件的案例信息：发件人并不在位于收件人的收件箱或发件箱中、域名为"com"、发件 email 是本地地址、主题行包含一个单词赚取，免费，保存、发件人姓名的数字个数较多、电子邮件的大小较小、如果主题行包括抵押,出售,批准,信贷之一、主题行中的大写字母较多、如果主题行不包含 pass, forward, help；
+垃圾邮件被正确分类的数据的特点：发件 email 多数不是本地地址、主题行没有包含一个单词赚取，免费，保存、发件人姓名的数字个数较少、主题行没有包括抵押、出售、批准、信贷之一、主题行中的大写字母较少、大部分主题不包含收件人的姓名或登录名、主题中的特殊字符（非字母数字字符）数较少、主题行里没有 “ nude, sex, enlarge, improve”之一。
+3.7 检查 Spam (真实类别) 和 Spam.Prob (可能被当成垃圾邮件的). 有多少不是垃圾邮件的被认定超过50% 可能是垃圾邮件（spam）?
+```{r}
+Spam<-rf_param$spam
+votes<-as.tibble(fit.forest$votes)[,c(1,2)]
+Spam.Prob<-apply(votes, 1, FUN = function(x){ifelse(x[2]>x[1],"yes","no")})
+matrixre<-as.tibble(cbind(Spam,Spam.Prob))
+matrixre%>%group_by(Spam,Spam.Prob)%>%summarise(n=n())#答：有89个
+```
+3.8 检查非垃圾邮件被随机森林分成垃圾邮件的案例的概率排名（probability rating ）.用一段文字描述具有高概率被当成垃圾邮件且被随机森林认为非常像垃圾邮件的案例。 
+```{r}
+a<-which(Spam=="no")
+b<-which(Spam.Prob=="yes")
+c<-intersect(a,b)
+prop<-apply(votes, 1, FUN = function(x){ifelse(x[2]>x[1],x[2],x[1])})[c]
+prop<-cbind(prop,c)
+tail(prop[order(prop[,1]),],5)
+rf_param[prop[which.max(prop[,1]),2],]
+```
+答：在周三12点发送的7kb大小的邮件只有一个名字主题行中的大写字母有0.1%，1个特殊字符，没有包括抵押、出售、批准、信贷之一，主题行包含一个单词赚取，免费，保存;域名为com的非垃圾邮件有98%的概率被识别为垃圾邮件。
+3.9哪个用户的非垃圾邮件最有可能被当成垃圾邮件？
+```{r}
+rf_error<-cbind(prop[,1],spam[c,])
+rank_user<-rf_error%>%group_by(isuid)%>%summarise(mean=mean(`prop[, 1]`))
+rank_user[which.max(rank_user$mean),1]
+```
+
+3.10 根据你对数据的分析，你认为哪些变量在判断一个电子邮件是否垃圾邮件时最重要？
+答：我认为name、size.kb、 digits、 sucker、  local domain.reduced、 box这些变量比较重要。
